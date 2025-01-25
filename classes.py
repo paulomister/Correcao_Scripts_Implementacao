@@ -1,3 +1,5 @@
+import requests
+
 class Usuario:
     def __init__(self, id, senha, nome, email):
         self.id = id
@@ -72,17 +74,35 @@ class Correcao:
         self.aluno = aluno
 
     def enviar_aluno(self):
-        return f"Correção enviada para {self.aluno.nome}"
+        return f"Correção enviada para {self.aluno.nome}" if self.aluno else "Correção enviada"
 
+
+import requests
+import json
 
 class APIAnalise:
-    def __init__(self, url, token):
+    def __init__(self, url="http://localhost:11434/api/generate"):
         self.url = url
-        self.token = token
 
     def analisar_codigo(self, codigo):
-        return Correcao(1, f"Código corrigido: {codigo}", None)  # Simula uma correção
+        payload = {
+            "model": "llama3.2",
+            "prompt": f"Corriga e melhore este código: {codigo}",
+            "stream" : False
+        }
 
+        try:
+            response = requests.post(self.url, json=payload, stream=True)
+
+            if response.status_code == 200:
+                resultado_final = resultado_final = response.json()['response']
+
+                return Correcao(1, resultado_final, None)
+            else:
+                return Correcao(1, "Falha ao analisar código", None)
+
+        except requests.RequestException as e:
+            return Correcao(1, f"Erro ao conectar com a API: {e}", None)
 
 class Sistema:
     def __init__(self):
@@ -100,15 +120,11 @@ class Sistema:
 
 def main():
     sistema = Sistema()
+    api_analise = APIAnalise()
 
-    # Criando usuários de exemplo
-    aluno1 = Aluno(1, "senha123", "João", "joao@email.com")
-    professor1 = Professor(2, "prof456", "Maria", "maria@email.com")
-    
+    aluno1 = Aluno(1, "123", "João", "j")
     sistema.cadastrar_usuario(aluno1)
-    sistema.cadastrar_usuario(professor1)
 
-    # Simulação de login
     email = input("Digite seu email: ")
     senha = input("Digite sua senha: ")
 
@@ -118,12 +134,10 @@ def main():
         print(f"Bem-vindo, {usuario.nome}!")
 
         if isinstance(usuario, Aluno):
-            script_codigo = input("Digite seu código para envio: ")
-            script = Script(1, script_codigo)
-            print(usuario.enviar_codigo(script.codigo))
-
-        elif isinstance(usuario, Professor):
-            print("Você pode responder dúvidas dos alunos.")
+            script_codigo = input("Digite seu código para análise: ")
+            correcao = api_analise.analisar_codigo(script_codigo)
+            print("\nCódigo corrigido pela IA:")
+            print(correcao.codigo_corrigido)
     else:
         print("Login falhou. Verifique suas credenciais.")
 
